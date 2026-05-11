@@ -1,0 +1,50 @@
+services:
+  my-agent:
+    image: nicolaka/netshoot:v0.14
+    networks:
+      private:
+    entrypoint: ["sleep", "infinity"]
+    # Fake DNS server, so DNS requests must go through the proxy
+    dns:
+      - 127.0.0.1
+    environment:
+      - http_proxy=http://proxy:8888
+      - https_proxy=http://proxy:8888
+
+  proxy:
+    image: ajoergensen/tinyproxy
+    configs:
+      - source: tinyproxy_conf
+        target: /etc/tinyproxy/tinyproxy.conf
+      - source: tinyproxy_filter
+        target: /etc/tinyproxy/filter
+    networks:
+      - private
+      - default
+
+networks:
+  private:
+    internal: true
+      
+configs:
+  tinyproxy_conf:
+    content: |
+      Port 8888
+      
+      # Source Filter (Allow private docker networks)
+      Allow 127.0.0.1
+      Allow 10.0.0.0/8
+      Allow 172.16.0.0/12
+      Allow 192.168.0.0/16
+      
+      # Destination filter
+      Filter "/etc/tinyproxy/filter"
+      FilterDefaultDeny Yes
+      
+      ConnectPort 443
+      ConnectPort 80
+
+  tinyproxy_filter:
+    content: |
+      # List of IPs and domains allowed
+      172.217.23.174
